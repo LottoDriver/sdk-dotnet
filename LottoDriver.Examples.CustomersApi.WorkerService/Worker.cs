@@ -206,6 +206,9 @@ namespace LottoDriver.Examples.CustomersApi.WorkerService
                 draw.RecommendedClosingTimeUtc = dtoDraw.RecommendedClosingTimeUtc;
                 draw.Status = (LottoDrawStatus)dtoDraw.Status;
                 draw.Result = dtoDraw.Result.Count > 0 ? string.Join(",", dtoDraw.Result) : null;
+                draw.ExtraResult = dtoDraw.ExtraResult != null 
+                    ? System.Text.Json.JsonSerializer.Serialize(dtoDraw.ExtraResult)
+                    : null;
 
                 // update the draw in the local database
                 _database.LottoDrawUpdate(draw);

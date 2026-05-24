@@ -171,7 +171,7 @@ VALUES (@id, @country_id, @name, @numbers_total, @numbers_drawn, @lottodriver_lo
             LottoDraw d = null;
 
             using (var cmd = CreateCommand(@"
-SELECT id, lotto_id, scheduled_time_utc, draw_time_utc, recommended_closing_time_utc, status, result, lottodriver_draw_id 
+SELECT id, lotto_id, scheduled_time_utc, draw_time_utc, recommended_closing_time_utc, status, result, extra_result, lottodriver_draw_id 
 FROM lotto_draw
 WHERE lottodriver_draw_id = @lottodriver_draw_id
 "))
@@ -193,7 +193,8 @@ WHERE lottodriver_draw_id = @lottodriver_draw_id
                                 : reader.GetDateTime(4),
                             Status = (LottoDrawStatus)reader.GetInt32(5),
                             Result = reader.IsDBNull(6) ? null : reader.GetString(6),
-                            LottoDriverDrawId = reader.IsDBNull(7) ? (long?)null : reader.GetInt64(7)
+                            ExtraResult = reader.IsDBNull(7) ? null : reader.GetString(7),
+                            LottoDriverDrawId = reader.IsDBNull(8) ? (long?)null : reader.GetInt64(8)
                         };
                     }
 
@@ -208,8 +209,8 @@ WHERE lottodriver_draw_id = @lottodriver_draw_id
         public void LottoDrawInsert(LottoDraw draw)
         {
             using (var cmd = CreateCommand(@"
-INSERT INTO lotto_draw (id, lotto_id, scheduled_time_utc, draw_time_utc, recommended_closing_time_utc, status, result, lottodriver_draw_id)
-VALUES (@id, @lotto_id, @scheduled_time_utc, @draw_time_utc, @recommended_closing_time_utc, @status, @result, @lottodriver_draw_id)
+INSERT INTO lotto_draw (id, lotto_id, scheduled_time_utc, draw_time_utc, recommended_closing_time_utc, status, result, extra_result, lottodriver_draw_id)
+VALUES (@id, @lotto_id, @scheduled_time_utc, @draw_time_utc, @recommended_closing_time_utc, @status, @result, @extra_result, @lottodriver_draw_id)
 "))
             {
                 AddInParam(cmd, "id", DbType.Int32, draw.Id != 0 ? draw.Id : (object) DBNull.Value);
@@ -219,6 +220,7 @@ VALUES (@id, @lotto_id, @scheduled_time_utc, @draw_time_utc, @recommended_closin
                 AddInParam(cmd, "recommended_closing_time_utc", DbType.DateTime, draw.RecommendedClosingTimeUtc);
                 AddInParam(cmd, "status", DbType.Int32, (int)draw.Status);
                 AddInParam(cmd, "result", DbType.String, draw.Result ?? (object) DBNull.Value);
+                AddInParam(cmd, "extra_result", DbType.String, draw.ExtraResult ?? (object) DBNull.Value);
                 AddInParam(cmd, "lottodriver_draw_id", DbType.Int64, draw.LottoDriverDrawId ?? (object) DBNull.Value);
 
                 cmd.ExecuteNonQuery();
@@ -233,7 +235,7 @@ VALUES (@id, @lotto_id, @scheduled_time_utc, @draw_time_utc, @recommended_closin
 UPDATE lotto_draw SET
     lotto_id = @lotto_id, scheduled_time_utc = @scheduled_time_utc, draw_time_utc = @draw_time_utc,
     recommended_closing_time_utc = @recommended_closing_time_utc,
-    status = @status, result = @result, lottodriver_draw_id = @lottodriver_draw_id
+    status = @status, result = @result, extra_result = @extra_result, lottodriver_draw_id = @lottodriver_draw_id
 WHERE
     id = @id
 "))
@@ -244,6 +246,7 @@ WHERE
                 AddInParam(cmd, "recommended_closing_time_utc", DbType.DateTime, draw.RecommendedClosingTimeUtc);
                 AddInParam(cmd, "status", DbType.Int32, (int)draw.Status);
                 AddInParam(cmd, "result", DbType.String, draw.Result ?? (object) DBNull.Value);
+                AddInParam(cmd, "extra_result", DbType.String, draw.ExtraResult ?? (object) DBNull.Value);
                 AddInParam(cmd, "lottodriver_draw_id", DbType.Int64, draw.LottoDriverDrawId ?? (object) DBNull.Value);
                 AddInParam(cmd, "id", DbType.Int32, draw.Id != 0 ? draw.Id : (object) DBNull.Value);
 
@@ -254,7 +257,7 @@ WHERE
         public void LottoDrawFindRecent(DataTable dataTable)
         {
             using (var cmd = CreateCommand(@"
-SELECT d.id, d.scheduled_time_utc, d.draw_time_utc, d.recommended_closing_time_utc, l.name AS lotto_name, d.status, d.result, d.lottodriver_draw_id
+SELECT d.id, d.scheduled_time_utc, d.draw_time_utc, d.recommended_closing_time_utc, l.name AS lotto_name, d.status, d.result, d.extra_result, d.lottodriver_draw_id
 FROM lotto_draw d
     INNER JOIN lotto l ON (l.id = d.lotto_id)
 WHERE d.scheduled_time_utc < datetime('now', '+5 minutes')
@@ -287,6 +290,23 @@ ORDER BY d.scheduled_time_utc DESC
             if (version < 3)
             {
                 UpgradeToV003();
+            }
+
+            if (version < 4)
+            {
+                UpgradeToV004();
+            }
+        }
+
+        private void UpgradeToV004()
+        {
+            using (var cmd = CreateCommand($@"
+ALTER TABLE lotto_draw ADD extra_result NTEXT;
+
+UPDATE config SET config_value = 4 WHERE config_key='{ConfigKeys.Version}';
+"))
+            {
+                cmd.ExecuteNonQuery();
             }
         }
 

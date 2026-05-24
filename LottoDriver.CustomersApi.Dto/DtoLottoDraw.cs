@@ -53,6 +53,12 @@ namespace LottoDriver.CustomersApi.Dto
         /// </summary>
         public List<int> Result { get; set; }
 
+        /// <summary>
+        /// Extra result groups (e.g. golden or bonus balls) keyed by group name 
+        /// with the drawn numbers per group. Null if no such result exists.
+        /// </summary>
+        public Dictionary<string, int[]> ExtraResult { get; set; }
+
         internal void SetLotto(DtoLotto lotto)
         {
             Lotto = lotto;

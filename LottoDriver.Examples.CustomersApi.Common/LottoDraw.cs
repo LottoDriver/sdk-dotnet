@@ -46,6 +46,12 @@ namespace LottoDriver.Examples.CustomersApi.Common
         public string Result { get; set; }
 
         /// <summary>
+        /// Serialized JSON for extra results (bonus, golden balls)
+        /// The JSON represents a dictionary of int array, keyed by bonus name.
+        /// </summary>
+        public string ExtraResult { get; set; }
+
+        /// <summary>
         /// This is LottoDriver's identifier of the draw.
         /// It is set as nullable here to show that a betting companies can
         /// have lotteries and lotto draws that aren't connected to LottoDriver.
