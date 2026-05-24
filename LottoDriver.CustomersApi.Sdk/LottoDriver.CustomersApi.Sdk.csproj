@@ -2,14 +2,18 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net48</TargetFrameworks>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
+    <RepositoryUrl>https://github.com/LottoDriver/Examples/</RepositoryUrl>
     <PackageLicenseExpression></PackageLicenseExpression>
     <Authors>LottoDriver.com</Authors>
-    <Copyright></Copyright>
+    <Copyright>Copyright (c) 2020 LottoDriver.com</Copyright>
     <Description>SDK for accessing LottoDriver.com Customers API</Description>
     <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://lottodriver.com/</PackageProjectUrl>
     <PackageLicenseFile>License.txt</PackageLicenseFile>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
 
