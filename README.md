@@ -275,6 +275,6 @@ The SDK uses semantic versioning. The current version is in `LottoDriver.Custome
 
 ## License and contact
 
-License: see `LottoDriver.CustomersApi.Sdk/License.txt`.
+MIT. See [LICENSE](LICENSE).
 
 Questions, credentials, integration help: <info@lottodriver.com>.
