@@ -3,12 +3,13 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net48</TargetFrameworks>
     <Version>2.0.0</Version>
-    <RepositoryUrl>https://github.com/LottoDriver/Examples/</RepositoryUrl>
+    <RepositoryUrl>https://github.com/LottoDriver/sdk-dotnet</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Authors>LottoDriver.com</Authors>
     <Copyright>Copyright (c) 2020-2026 LottoDriver.com</Copyright>
     <Description>SDK for accessing LottoDriver.com Customers API</Description>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
     <PackageProjectUrl>https://lottodriver.com/</PackageProjectUrl>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
@@ -43,6 +44,10 @@
 
   <ItemGroup>
     <None Include="icon.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="PACKAGE.md">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
