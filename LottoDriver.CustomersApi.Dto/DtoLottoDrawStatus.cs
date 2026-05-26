@@ -1,58 +1,51 @@
-﻿namespace LottoDriver.CustomersApi.Dto
+namespace LottoDriver.CustomersApi.Dto
 {
     /// <summary>
-    /// Known lotto draw statuses in this version of the API
+    /// Lifecycle statuses recognised by this SDK version. Compare against
+    /// <see cref="DtoLottoDraw.Status"/> using
+    /// <see cref="DtoLottoDrawExtensions.GetStatusType"/>, which falls back to
+    /// <see cref="Unknown"/> for any value the SDK does not know.
     /// </summary>
     public enum DtoLottoDrawStatus
     {
         /// <summary>
-        /// This status should only be possible if an older API SDK is
-        /// contacting a newer version of the Customers API.
-        /// It should be handled as <see cref="UndoCleared"/>.
+        /// The server returned a status this SDK version does not know. Treat as
+        /// <see cref="UndoCleared"/>: stop accepting new bets and, if the draw was
+        /// already settled, freeze payouts until a known status appears.
         /// </summary>
         Unknown = -1,
 
         /// <summary>
-        /// Before the results are known, a lotto draw in in the
-        /// published status. It does not necessarily mean that
-        /// bets should be allowed when in this state.
-        ///
-        /// Betting companies should have their own time until
-        /// the betting is valid, which should be before the scheduled
-        /// and before the actual draw time (if they differ).
+        /// The draw is announced and results are not yet known. Bets are allowed
+        /// only if the integrator's own cutoff also permits it; "published" does
+        /// not by itself authorise betting.
         /// </summary>
         Published = 0,
 
         /// <summary>
-        /// A a lotto draw will be in this state when a result is not yet known
-        /// but the LottoDriver detected a discrepancy in the scheduled time.
-        /// Bets should not be allowed while a draw is in this state.
+        /// Results are not known, but LottoDriver has detected a scheduling
+        /// discrepancy. Do not accept bets until the status returns to
+        /// <see cref="Published"/> or <see cref="Cleared"/>.
         /// </summary>
         Unpublished = 1,
 
         /// <summary>
-        /// A lotto draw is closed with the known result. Bets can be resulted
-        /// (processed as winning or losing) based on the result.
-        ///
-        /// The resulting should take into the account the actual draw time, 
-        /// void any bets purchased after the actual draw time.
+        /// Results are final. Bets can be settled. Void any bet placed after
+        /// <see cref="DtoLottoDraw.DrawTimeUtc"/>.
         /// </summary>
         Cleared = 2,
 
         /// <summary>
-        /// A draw was cleared, but a problem has been detected after that.
-        /// Betting on the draw should not be allowed.
-        ///
-        /// This essentially means that the bets have already been resulted (marked as winning or losing).
-        /// In that case, bets should be reversed to "un-resulted" state if possible.
-        /// If reversing is not possible, all pay outs of the winning bets should be blocked
-        /// until the status changes to either Cleared or Canceled.
+        /// A draw that was previously <see cref="Cleared"/> is in dispute. If bets
+        /// have already been settled, reverse them. If reversal is impossible, at
+        /// minimum block payouts on winning bets until the status moves back to
+        /// <see cref="Cleared"/> or to <see cref="Canceled"/>.
         /// </summary>
         UndoCleared = 3,
 
         /// <summary>
-        /// This status signifies that the lotto draw was cancelled and the bets should be
-        /// voided (purchase money returned to the player).
+        /// The draw did not take place. All bets must be voided and the stakes
+        /// returned to the players.
         /// </summary>
         Canceled = 4
     }

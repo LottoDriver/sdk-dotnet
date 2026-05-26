@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -14,22 +14,41 @@ using LottoDriver.CustomersApi.Dto;
 namespace LottoDriver.CustomersApi.Sdk
 {
     /// <summary>
-    /// Delegate handler for DataReceived event.
+    /// Delegate signature for <see cref="ICustomersApiClient.DataReceived"/>.
+    /// The handler must return <c>true</c> when the data has been persisted and the
+    /// sequence pointer should advance, or <c>false</c> to have the same range
+    /// re-delivered on the next poll.
     /// </summary>
-    /// <param name="source">The instance that fired the event</param>
-    /// <param name="data">Data received by the LottoDriver server (changed data)</param>
-    /// <returns></returns>
+    /// <param name="source">The client instance that raised the event.</param>
+    /// <param name="data">The change set returned by the server.</param>
     public delegate bool DataReceivedHandler(ICustomersApiClient source, DtoLotteriesResponse data);
 
     /// <summary>
-    /// Delegate handler for <see cref="ICustomersApiClient.Error" /> and <see cref="ICustomersApiClient.CallbackError"/> events.
+    /// Delegate signature for <see cref="ICustomersApiClient.Error"/> and
+    /// <see cref="ICustomersApiClient.CallbackError"/>. The exception is reported
+    /// for logging purposes; the client continues running.
     /// </summary>
-    /// <param name="source">The instance that fired the event</param>
-    /// <param name="exception">Exception that was raised</param>
+    /// <param name="source">The client instance that raised the event.</param>
+    /// <param name="exception">The captured exception.</param>
     public delegate void ErrorHandler(ICustomersApiClient source, Exception exception);
 
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Default implementation of <see cref="ICustomersApiClient"/>.
+    /// <para>
+    /// The client uses a single <see cref="HttpClient"/> and a <see cref="Timer"/>
+    /// that fires once per second. When <see cref="Connect"/> has been called and at
+    /// least 15 seconds have passed since the previous poll, the timer callback hits
+    /// the change-feed endpoint and raises <see cref="DataReceived"/> on success.
+    /// </para>
+    /// <para>
+    /// OAuth2 client_credentials authentication runs lazily. The bearer token is
+    /// cached until shortly before its <c>expires_in</c> deadline, with a 24-hour
+    /// fallback if the server omits the field. A <see cref="HttpStatusCode.Unauthorized"/>
+    /// response from the change feed invalidates the cached token so the next call
+    /// re-authenticates.
+    /// </para>
+    /// </summary>
     public class CustomersApiClient : ICustomersApiClient
     {
         // ReSharper disable NotAccessedField.Local
@@ -55,13 +74,14 @@ namespace LottoDriver.CustomersApi.Sdk
         public event ErrorHandler Error;
 
         /// <summary>
-        /// Creates an instance of the LottoDriver Customers API Client.
-        /// The client handles reconnect and recovery automatically, so "Connect" should only be called once,
-        /// on application start.
+        /// Constructs a client. Construction does not perform any I/O.
         /// </summary>
-        /// <param name="apiUrl">LottoDriver Customers API Url</param>
-        /// <param name="clientId">Betting company client id</param>
-        /// <param name="clientSecret">A secret string assigned to each client id to authenticate the client</param>
+        /// <param name="apiUrl">
+        /// Base URL of the Customers API, with trailing slash. Defaults to the
+        /// production v2 endpoint.
+        /// </param>
+        /// <param name="clientId">Client id issued by LottoDriver.</param>
+        /// <param name="clientSecret">Client secret issued by LottoDriver.</param>
         public CustomersApiClient(string apiUrl = "https://api.lottodriver.com/v2/", string clientId = "", string clientSecret = "")
         {
             _clientId = clientId;
@@ -145,7 +165,7 @@ namespace LottoDriver.CustomersApi.Sdk
 
             return GetDrawsAsync(lottoId, dateFromUtc, dateToUtc);
         }
-        
+
         /// <inheritdoc />
         public async Task<DtoLottoDraw> GetDrawAsync(long drawId)
         {
@@ -170,6 +190,9 @@ namespace LottoDriver.CustomersApi.Sdk
             }
         }
 
+        // Timer callback. Runs on a thread pool thread once per second. Decides
+        // whether the 15-second poll interval has elapsed, drives the change-feed
+        // call, dispatches DataReceived, and reschedules itself.
         private void TimerElapsed(object state)
         {
             try
@@ -180,6 +203,9 @@ namespace LottoDriver.CustomersApi.Sdk
                 if (_lastPollTime.AddSeconds(15) > utcNow) return;
                 _lastPollTime = utcNow;
 
+                // Synchronous .Result here is intentional: the timer callback is
+                // already off the calling thread, and the polling loop is the only
+                // consumer of this task.
                 var data = GetLotteriesFromFeed().Result;
 
                 ConnectHierarchy(data);
@@ -188,11 +214,11 @@ namespace LottoDriver.CustomersApi.Sdk
                 {
                     _lastSeqNo = data.To;
 
-                    // this is to speed up catching up
-                    // if the client was offline for a long time
+                    // Catch-up mode: if the server reported a wide change range, the
+                    // client is probably behind. Force the next tick to poll again
+                    // immediately instead of waiting another 15 seconds.
                     if (data.To - data.From > 500)
                     {
-                        // this will force a call to the backend API in the next timer callback
                         _lastPollTime = DateTime.MinValue;
                     }
                 }
@@ -207,6 +233,8 @@ namespace LottoDriver.CustomersApi.Sdk
             }
         }
 
+        // GET /lotteries?lastSeqNo=N. Re-authenticates on 401 so the next call has
+        // a fresh token.
         private async Task<DtoLotteriesResponse> GetLotteriesFromFeed()
         {
             if (!IsTokenValid())
@@ -228,6 +256,8 @@ namespace LottoDriver.CustomersApi.Sdk
             }
         }
 
+        // POST /token with client_credentials. Sets the Authorization header on the
+        // shared HttpClient and records the expiry for IsTokenValid().
         private async Task Authenticate()
         {
             var content = new FormUrlEncodedContent(new[]
@@ -251,6 +281,7 @@ namespace LottoDriver.CustomersApi.Sdk
                     throw new Exception("Invalid token");
                 }
 
+                // Fall back to 24h if the server did not include expires_in.
                 _tokenExpiresAt = tokenResponse.expires_in > 0
                     ? DateTime.UtcNow.AddSeconds(tokenResponse.expires_in)
                     : DateTime.UtcNow.AddHours(24);
@@ -269,6 +300,9 @@ namespace LottoDriver.CustomersApi.Sdk
             return _tokenExpiresAt > DateTime.UtcNow;
         }
 
+        // Populates the back-references (DtoLotto.Country, DtoLottoDraw.Lotto) that
+        // are not serialized by the server. After this call, draw.Lotto.Country is
+        // reachable from any DtoLottoDraw in the response.
         private void ConnectHierarchy(DtoLotteriesResponse data)
         {
             foreach (var country in data.Countries)
@@ -285,6 +319,8 @@ namespace LottoDriver.CustomersApi.Sdk
             }
         }
 
+        // Invokes the DataReceived handler. Returns the caller's persist-acknowledgement
+        // boolean, or false if there is nothing to deliver or the handler threw.
         private bool OnDataReceived(DtoLotteriesResponse data)
         {
             try
@@ -312,6 +348,8 @@ namespace LottoDriver.CustomersApi.Sdk
             }
         }
 
+        // Final fallback. If the user's CallbackError handler also throws, there is
+        // nowhere left to report it; swallow to keep the polling loop alive.
         private void OnCallbackError(Exception exception)
         {
             try

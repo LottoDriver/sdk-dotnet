@@ -4,11 +4,29 @@ using System.Data.SQLite;
 
 namespace LottoDriver.Examples.CustomersApi.Common.DataAccess
 {
+    /// <summary>
+    /// SQLite-backed implementation of <see cref="IDatabase"/>.
+    /// <para>
+    /// Owns a single <see cref="SQLiteConnection"/>. The connection is opened on
+    /// <see cref="BeginTransaction"/>, closed on commit/rollback. All other methods
+    /// assume an open transaction.
+    /// </para>
+    /// <para>
+    /// Schema migrations are versioned in the <c>config</c> table under the
+    /// <c>version</c> key. <see cref="UpgradeDb"/> walks the versions in order and
+    /// is safe to call on every startup. The current schema version is 4.
+    /// </para>
+    /// </summary>
     // ReSharper disable once InconsistentNaming
     public class SQLiteDatabase : IDatabase
     {
+        // DateTimeKind=Utc tells the SQLite ADO.NET provider to materialise all
+        // DateTime columns as UTC rather than Unspecified, which would otherwise
+        // surface as local time on round-trip.
         private const string ConnectionString = "Data Source={0};Version=3;DateTimeKind=Utc";
 
+        // Keys used in the config table. Kept as constants because they are written
+        // into raw SQL strings in the migration code.
         private static class ConfigKeys
         {
             public const string LastSeqNo = "customer_api_last_seq_no";
@@ -19,6 +37,12 @@ namespace LottoDriver.Examples.CustomersApi.Common.DataAccess
 
         private SQLiteTransaction _transaction;
 
+        /// <summary>
+        /// Constructs a database wrapper for the SQLite file at
+        /// <paramref name="dbFilePath"/>. The file is created on first use by
+        /// the SQLite provider when the connection is opened. No I/O happens
+        /// during construction.
+        /// </summary>
         public SQLiteDatabase(string dbFilePath)
         {
             _cn = new SQLiteConnection(string.Format(ConnectionString, dbFilePath));
@@ -256,6 +280,9 @@ WHERE
 
         public void LottoDrawFindRecent(DataTable dataTable)
         {
+            // Recent draws window for the WinForms viewer: from six hours ago up to
+            // five minutes in the future. The +5 minutes margin shows draws that
+            // are about to start.
             using (var cmd = CreateCommand(@"
 SELECT d.id, d.scheduled_time_utc, d.draw_time_utc, d.recommended_closing_time_utc, l.name AS lotto_name, d.status, d.result, d.extra_result, d.lottodriver_draw_id
 FROM lotto_draw d
@@ -275,6 +302,9 @@ ORDER BY d.scheduled_time_utc DESC
 
         public void UpgradeDb()
         {
+            // Walk the versions in order. Each UpgradeToVxxx step is idempotent in
+            // the sense that it only runs when the stored version is below its
+            // target, so calling UpgradeDb() on every startup is safe.
             var version = GetVersion();
 
             if (version < 1)
@@ -298,6 +328,8 @@ ORDER BY d.scheduled_time_utc DESC
             }
         }
 
+        // V004: add the extra_result column on lotto_draw, used to store the
+        // JSON-serialized extra-ball groups returned by the API.
         private void UpgradeToV004()
         {
             using (var cmd = CreateCommand($@"
@@ -310,6 +342,7 @@ UPDATE config SET config_value = 4 WHERE config_key='{ConfigKeys.Version}';
             }
         }
 
+        // V003: add the recommended_closing_time_utc column on lotto_draw.
         private void UpgradeToV003()
         {
             using (var cmd = CreateCommand($@"
@@ -322,6 +355,8 @@ UPDATE config SET config_value = 3 WHERE config_key='{ConfigKeys.Version}';
             }
         }
 
+        // V002: create the domain tables (country, lotto, lotto_draw) and their
+        // indexes on the LottoDriver-side ids used for upsert lookups.
         private void UpgradeToV002()
         {
             using (var cmd = CreateCommand($@"
@@ -370,6 +405,7 @@ UPDATE config SET config_value = 2 WHERE config_key='{ConfigKeys.Version}';
             }
         }
 
+        // V001: bootstrap the config table that everything else depends on.
         private void UpgradeToV001()
         {
             using (var cmd = CreateCommand($@"
@@ -390,6 +426,10 @@ INSERT INTO config (config_key, config_value) VALUES
             }
         }
 
+        // Returns the current schema version, or 0 if the config table does not
+        // exist yet (fresh database). The catch is deliberately broad: any error
+        // reading the version is treated as "no version", which triggers the
+        // initial bootstrap migration.
         private int GetVersion()
         {
             try

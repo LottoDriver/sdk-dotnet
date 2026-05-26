@@ -1,17 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace LottoDriver.Examples.CustomersApi.DatabaseViewer
 {
+    /// <summary>
+    /// WinForms entry point for the DatabaseViewer. Opens <see cref="FrmMain"/>
+    /// which lets the user inspect the SQLite database written by the worker /
+    /// Windows Service examples.
+    /// </summary>
     static class Program
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
+        [System.STAThread]
         static void Main()
         {
             Application.EnableVisualStyles();

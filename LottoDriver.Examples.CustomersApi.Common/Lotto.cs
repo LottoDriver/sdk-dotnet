@@ -1,43 +1,42 @@
-﻿namespace LottoDriver.Examples.CustomersApi.Common
+namespace LottoDriver.Examples.CustomersApi.Common
 {
+    /// <summary>
+    /// A lottery as stored in the example app's local SQLite database. Mirrors
+    /// <c>LottoDriver.CustomersApi.Dto.DtoLotto</c>, but with the betting company's
+    /// own ids. Each instance corresponds to one row in the <c>lotto</c> table.
+    /// </summary>
     public class Lotto
     {
         /// <summary>
-        /// Betting company's identifier of the lottery which
-        /// can be unrelated to LottoDriver's identifiers.
-        ///
-        /// A betting company should have their own lotto and lotto draw identifiers,
-        /// which may be simple autoincrement fields (as shown in this example).
-        /// That way, a betting company can have lotteries and lotto draws
-        /// that aren't connected to LottoDriver's feed.
+        /// Local primary key. Autoincrement; <c>0</c> means "not yet inserted".
         /// </summary>
         public int Id { get; set; }
 
         /// <summary>
-        /// Betting company's identifier of the country.
-        /// This is not LottoDriver's id.
+        /// Foreign key to <see cref="Country.Id"/> in the local <c>country</c>
+        /// table. This is the local id, not LottoDriver's country id.
         /// </summary>
         public int CountryId { get; set; }
 
         /// <summary>
-        /// Lottery name
+        /// Lottery name.
         /// </summary>
         public string Name { get; set; }
 
         /// <summary>
-        /// Total number of balls in the lottery "drum".
+        /// Total balls in the drum. Mirrors <c>DtoLotto.NumbersTotal</c>.
         /// </summary>
         public int NumbersTotal { get; set; }
 
         /// <summary>
-        /// Number of balls drawn on each drawing event.
+        /// Balls drawn per round. Mirrors <c>DtoLotto.NumbersDrawn</c>.
         /// </summary>
         public int NumbersDrawn { get; set; }
 
         /// <summary>
-        /// This is LottoDriver's identifier of the Lottery.
-        /// It is set as nullable here to show that a betting companies can
-        /// have lotteries and lotto draws that aren't connected to LottoDriver.
+        /// LottoDriver's lottery id, if this row originated from the LottoDriver
+        /// feed. Nullable to allow rows that have no LottoDriver counterpart (a
+        /// betting company can run lotteries that LottoDriver does not cover).
         /// </summary>
         public int? LottoDriverLottoId { get; set; }
     }

@@ -1,33 +1,39 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace LottoDriver.CustomersApi.Dto
 {
     /// <summary>
-    /// Data object containing lotto draws that have changes
-    /// between <see cref="From"/> and <see cref="To"/> sequence numbers.
+    /// Response envelope returned by every endpoint of the Customers API.
+    /// Carries a window of changes, identified by the sequence-number pair
+    /// <see cref="From"/> / <see cref="To"/>, plus the affected countries and
+    /// their nested lotteries and draws.
     /// </summary>
     public class DtoLotteriesResponse
     {
         /// <summary>
-        /// Sequential number specifying the change starting point.
-        /// Normally, the clients of the API do not have not use this property.
-        /// It is mostly informational.
+        /// Lower bound (inclusive) of the sequence-number range that was scanned by
+        /// the server to produce this response. Informational; clients normally do
+        /// not need to read this value.
         /// </summary>
         public int From { get; set; }
 
         /// <summary>
-        /// This last sequence number in the data change message.
-        /// It is very important to permanently store this number on every
-        /// data change.
-        ///
-        /// It can happen that the "To" sequence number changes but the
-        /// <see cref="Countries"/> list is empty (because of a change irrelevant to clients).
+        /// Upper bound (inclusive) of the sequence-number range that was scanned.
+        /// This is the value the client must persist together with the data, and
+        /// pass back as <c>lastSeqNo</c> on the next session via
+        /// <c>ICustomersApiClient.Connect</c> (in <c>LottoDriver.CustomersApi.Sdk</c>).
+        /// <para>
+        /// <see cref="To"/> can advance even when <see cref="Countries"/> is empty.
+        /// This happens when changes occurred that are not visible to clients.
+        /// Persist the new <see cref="To"/> anyway.
+        /// </para>
         /// </summary>
         public int To { get; set; }
 
         /// <summary>
-        /// List of countries with lotto draws that have changes
-        /// between <see cref="From"/> and <see cref="To"/> sequence numbers.
+        /// Countries whose lotteries or draws changed within the
+        /// <see cref="From"/> - <see cref="To"/> range. Unchanged countries are not
+        /// returned.
         /// </summary>
         public List<DtoCountry> Countries { get; set; }
     }

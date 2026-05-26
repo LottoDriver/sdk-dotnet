@@ -1,73 +1,71 @@
-﻿using System;
+using System;
 
 namespace LottoDriver.Examples.CustomersApi.Common
 {
+    /// <summary>
+    /// A draw as stored in the example app's local SQLite database. Mirrors
+    /// <c>LottoDriver.CustomersApi.Dto.DtoLottoDraw</c>, with the betting company's
+    /// own ids and serialized result strings suitable for SQLite storage.
+    /// </summary>
     public class LottoDraw
     {
         /// <summary>
-        /// Betting company's identifier of the lotto draw which
-        /// can be unrelated to LottoDriver's identifiers.
-        ///
-        /// A betting company should have their own lotto and lotto draw identifiers,
-        /// which may be simple autoincrement fields (as shown in this example).
-        /// That way, a betting company can have lotteries and lotto draws
-        /// that aren't connected to LottoDriver's feed.
+        /// Local primary key. Autoincrement; <c>0</c> means "not yet inserted".
         /// </summary>
         public int Id { get; set; }
 
         /// <summary>
-        /// This is the betting company's identifier for the Lotto
-        /// (this is not LottoDriver's id).
+        /// Foreign key to <see cref="Lotto.Id"/> in the local <c>lotto</c> table.
+        /// This is the local id, not LottoDriver's lottery id.
         /// </summary>
         public int LottoId { get; set; }
 
         /// <summary>
-        /// The time when the draw was originally scheduled.
-        /// Normally this does not change.
+        /// Originally scheduled time, in UTC. Does not change after the row is
+        /// created; reschedules surface on <see cref="DrawTimeUtc"/>.
         /// </summary>
         public DateTime ScheduledTimeUtc { get; set; }
 
         /// <summary>
-        /// This is the actual draw time. When the draw is first
-        /// published, it will be the same as <see cref="ScheduledTimeUtc"/>.
-        /// But if the draw time change is detected, it will be reflected here.
+        /// Actual draw time, in UTC. Equal to <see cref="ScheduledTimeUtc"/> on
+        /// initial publication; updated when LottoDriver detects a schedule change.
         /// </summary>
         public DateTime DrawTimeUtc { get; set; }
 
         /// <summary>
-        /// Status of the draw (see <see cref="LottoDrawStatus"/>).
+        /// Current lifecycle status. See <see cref="LottoDrawStatus"/>.
         /// </summary>
         public LottoDrawStatus Status { get; set; }
 
         /// <summary>
-        /// Comma separated list of numbers after the result is known.
-        /// This is set to null if the result is not known.
+        /// Comma-separated drawn numbers in draw order, for example
+        /// <c>"7,12,33,45"</c>. <c>null</c> until the result is known.
         /// </summary>
         public string Result { get; set; }
 
         /// <summary>
-        /// Serialized JSON for extra results (bonus, golden balls)
-        /// The JSON represents a dictionary of int array, keyed by bonus name.
+        /// JSON-serialized <c>Dictionary&lt;string, int[]&gt;</c> holding extra-ball
+        /// groups (bonus, golden, etc.), keyed by group name. <c>null</c> if the
+        /// lottery has no extra balls or none have been drawn yet.
         /// </summary>
         public string ExtraResult { get; set; }
 
         /// <summary>
-        /// This is LottoDriver's identifier of the draw.
-        /// It is set as nullable here to show that a betting companies can
-        /// have lotteries and lotto draws that aren't connected to LottoDriver.
+        /// LottoDriver's draw id, if this row originated from the LottoDriver feed.
+        /// Nullable for the same reason as <see cref="Lotto.LottoDriverLottoId"/>.
         /// </summary>
         public long? LottoDriverDrawId { get; set; }
 
         /// <summary>
-        /// This is a recommendation from LottoDriver when to close betting for this draw.
-        /// Betting companies should decide on their own how long will
-        /// they keep the betting open and they should do so differently
-        /// per each lottery.
+        /// LottoDriver's recommended betting cutoff, in UTC. The example apps
+        /// honour this conservatively; an integrator is free to use a stricter
+        /// cutoff tailored per lottery.
         /// </summary>
         public DateTime RecommendedClosingTimeUtc { get; set; }
 
         /// <summary>
-        /// Betting is allowed only if the status is "Published" and "RecommendedClosingTimeUtc" is in the future.
+        /// True when betting is currently permitted: the draw is <see cref="LottoDrawStatus.Published"/>
+        /// and the recommended cutoff has not yet passed.
         /// </summary>
         public bool IsBettingAllowed => Status == LottoDrawStatus.Published
                                         && DateTime.UtcNow < RecommendedClosingTimeUtc;

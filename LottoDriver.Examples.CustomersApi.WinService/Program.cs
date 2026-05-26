@@ -1,12 +1,19 @@
-﻿using System;
+using System;
 using System.ServiceProcess;
 
 namespace LottoDriver.Examples.CustomersApi.WinService
 {
+    /// <summary>
+    /// Entry point for the .NET Framework example. The same executable runs as a
+    /// Windows Service when launched by the SCM, or as an interactive console app
+    /// when run directly (useful for debugging under Visual Studio).
+    /// </summary>
     static class Program
     {
         /// <summary>
-        /// The main entry point for the application.
+        /// Dispatches to <c>ServiceBase.Run</c> in non-interactive (SCM) mode, or
+        /// runs the service on the console in interactive mode and waits for the
+        /// user to press Enter before stopping.
         /// </summary>
         static void Main(string[] args)
         {
