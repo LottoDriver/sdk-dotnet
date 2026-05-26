@@ -62,7 +62,7 @@ namespace LottoDriver.CustomersApi.Sdk
         /// <param name="apiUrl">LottoDriver Customers API Url</param>
         /// <param name="clientId">Betting company client id</param>
         /// <param name="clientSecret">A secret string assigned to each client id to authenticate the client</param>
-        public CustomersApiClient(string apiUrl = "https://api.lottodriver.com/", string clientId = "", string clientSecret = "")
+        public CustomersApiClient(string apiUrl = "https://api.lottodriver.com/v2/", string clientId = "", string clientSecret = "")
         {
             _clientId = clientId;
             _clientSecret = clientSecret;
